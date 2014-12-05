@@ -1,0 +1,21 @@
+{
+    "name": "kamermans/command",
+    "description": "External command runner / executor for PHP",
+    "license": "BSD",
+    "authors": [
+        {
+            "name": "Steve Kamerman",
+            "email": "stevekamerman@gmail.com"
+        }
+    ],
+    "require": {},
+    "require-dev" : {
+        "phpunit/phpunit": "4.*",
+    },
+    "autoload": {
+        "psr-4": {
+            "ScientiaMobile\\WebserverConfig\\" : ["src/","tests/ScientiaMobile/"]
+        }
+    },
+    "minimum-stability": "dev"
+}
