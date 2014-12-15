@@ -4,14 +4,13 @@ use kamermans\Command\Command;
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-$cmd = new Command("whoami");
-$cmd->run();
+$cmd = Command::factory("whoami | tee /tmp/test.foo")->run();
 
 if ($cmd->getExitCode() === 0) {
-	echo "OK\n";
+	echo "STDOUT:\n";
     echo $cmd->getStdOut();
 } else {
-	echo "Error\n";
+	echo "STDERR:\n";
     echo $cmd->getStdErr();
 }
 
