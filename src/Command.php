@@ -28,6 +28,7 @@ class Command
     protected $_separator = ' ';
     protected $_cmd = null;
     protected $_args = array();
+    protected $_throw = false;
     protected $_exitcode = null;
     protected $_stdout = null;
     protected $_stderr = null;
@@ -117,6 +118,19 @@ class Command
     }
 
     /**
+     * If true, throw exceptions if a command fails (returns a non-zero exit code),
+     * this is similar to "set -e" in bash.
+     *
+     * @param bool $use True to use exceptions, false to fail silently (default)
+     * @return Command - Fluent interface
+     */
+    public function useExceptions($use)
+    {
+        $this->_throw = (bool)$use;
+        return $this;
+    }
+
+    /**
      * Sets the command to run
      *
      * @param string $cmd
@@ -184,7 +198,16 @@ class Command
         );
         $this->_exitcode = self::exec($this->getFullCommand(), $buffers, $this->_callback, $this->_cwd, $this->_env, $this->_conf);
 
+        if ($this->_throw && $this->_exitcode === 0) {
+            throw new CommandException($this, "Command failed: ".$this->getFullCommand());
+        }
+
         return $this;
+    }
+
+    public function __toString()
+    {
+        return $this->getFullCommand();
     }
 
     /**

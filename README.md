@@ -3,9 +3,19 @@ command
 
 External command runner / executor for PHP
 
-Taken from http://pollinimini.net/blog/php-command-runner/ and hosted here for maintenance and use with Packagist
+Taken from http://pollinimini.net/blog/php-command-runner/ and hosted here for maintenance, improvement and use with Packagist
+
+At its simplest form, you can execute commands like this:
 
 ```php
+$cmd = Command::factory('ls')->run();
+```
+
+Here we are safely adding arguments:
+
+```php
+use kamermans\Command\Command;
+
 $cmd = Command::factory('/usr/bin/svn');
 $cmd->option('--username', 'drslump')
     ->option('-r', 'HEAD')
@@ -22,6 +32,8 @@ if ($cmd->getExitCode() === 0) {
 Incremental updates can be accomplished with a callback function, like in the following example (PHP 5.3+):
 
 ```php
+use kamermans\Command\Command;
+
 $cmd = Command::factory('ls');
 $cmd->setCallback(function($pipe, $data){
         if ($pipe === Command::STDOUT) echo 'STDOUT: ';
