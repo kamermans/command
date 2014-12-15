@@ -4,7 +4,7 @@ use kamermans\Command\Command;
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-$cmd = Command::factory("whoami | tee /tmp/test.foo")->run();
+$cmd = Command::factory("whoami")->run();
 
 if ($cmd->getExitCode() === 0) {
 	echo "STDOUT:\n";
