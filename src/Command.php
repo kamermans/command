@@ -124,7 +124,7 @@ class Command
      * @param bool $use True to use exceptions, false to fail silently (default)
      * @return Command - Fluent interface
      */
-    public function useExceptions($use)
+    public function useExceptions($use=true)
     {
         $this->_throw = (bool)$use;
         return $this;
@@ -198,8 +198,8 @@ class Command
         );
         $this->_exitcode = self::exec($this->getFullCommand(), $buffers, $this->_callback, $this->_cwd, $this->_env, $this->_conf);
 
-        if ($this->_throw && $this->_exitcode === 0) {
-            throw new CommandException($this, "Command failed: ".$this->getFullCommand());
+        if ($this->_throw && $this->_exitcode !== 0) {
+            throw new CommandException($this, "Command failed '".$this->getFullCommand()."':\n".trim($this->getStdErr()));
         }
 
         return $this;
