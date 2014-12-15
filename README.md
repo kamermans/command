@@ -53,9 +53,8 @@ if ($cmd->getExitCode() === 0) {
 ```
 
 Some more features:
-StdIn data can be provided to the process as a parameter to run()
-Set environment variables for the process with setEnv()
-Second argument to option() and argument to argument() are automatically escaped.
-Options separator is white space by default, it can be changed by manually setting it as third argument to option() or setting a new default with setOptionSeparator().
-The proc_open wrapper is exposed as a static method for your convenience Command::exec()
-And finally the class which makes all that possible :)
+ - `StdIn` data can be provided to the process as a parameter to `run()`
+ - Set environment variables for the process with `setEnv()`
+ - Second argument to `option()` and argument to `argument()` are automatically escaped.
+ - Options separator is white space by default, it can be changed by manually setting it as third argument to `option()` or setting a new default with `setOptionSeparator()`.
+ - The `proc_open` wrapper is exposed as a static method for your convenience `Command::exec()`
