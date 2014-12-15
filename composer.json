@@ -14,7 +14,7 @@
     },
     "autoload": {
         "psr-4": {
-            "ScientiaMobile\\WebserverConfig\\" : ["src/","tests/ScientiaMobile/"]
+            "kamermans\\Command" : ["src/","test/"]
         }
     },
     "minimum-stability": "dev"
