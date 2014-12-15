@@ -10,11 +10,11 @@
     ],
     "require": {},
     "require-dev" : {
-        "phpunit/phpunit": "4.*",
+        "phpunit/phpunit": "4.*"
     },
     "autoload": {
         "psr-4": {
-            "kamermans\\Command" : ["src/","test/"]
+            "kamermans\\Command\\" : ["src/","test/"]
         }
     },
     "minimum-stability": "dev"

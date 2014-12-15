@@ -249,21 +249,21 @@ class Command
         }
 
         // Define the pipes to configure for the process
-    	$descriptors = array(
-            self::STDIN	 => array('pipe', 'r'),
+        $descriptors = array(
+            self::STDIN  => array('pipe', 'r'),
             self::STDOUT => array('pipe', 'w'),
             self::STDERR => array('pipe', 'w'),
-    	);
+        );
 
         // Start the process
-    	$ph = proc_open($cmd, $descriptors, $pipes, $cwd, $env, $conf);
-    	if (!is_resource($ph)) {
+        $ph = proc_open($cmd, $descriptors, $pipes, $cwd, $env, $conf);
+        if (!is_resource($ph)) {
             return null;
-    	}
+        }
 
         // Feed the process with the stdin if any and close it
         if (!empty($buffers[self::STDIN])) {
-	    fwrite($pipes[self::STDIN], $buffers[self::STDIN]);
+        fwrite($pipes[self::STDIN], $buffers[self::STDIN]);
         }
         fclose($pipes[self::STDIN]);
 
@@ -323,18 +323,18 @@ class Command
             }
         }
 
-    	// Make sure all pipes are closed
-    	foreach ($pipes as $pipe=>$desc) {
+        // Make sure all pipes are closed
+        foreach ($pipes as $pipe=>$desc) {
             if (is_resource($desc)) {
                 if ($callback) {
                     call_user_func($callback, $pipe, null);
                 }
                 fclose($desc);
             }
-    	}
+        }
 
         // Make sure the process is terminated
-	$status = proc_get_status($ph);
+        $status = proc_get_status($ph);
         if ($status['running']) {
             proc_terminate($ph);
         }
