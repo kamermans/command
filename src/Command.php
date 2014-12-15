@@ -33,6 +33,8 @@ class Command
     protected $_stdout = null;
     protected $_stderr = null;
     protected $_callback = null;
+    protected $_timestart = null;
+    protected $_timeend = null;
     protected $_cwd = null;
     protected $_env = null;
     protected $_conf = array();
@@ -189,6 +191,7 @@ class Command
         $this->_exitcode = null;
         $this->_stdout = null;
         $this->_stderr = null;
+        $this->_timestart = microtime(true);
 
         // Prepare the buffers structure
         $buffers = array(
@@ -197,9 +200,10 @@ class Command
             2 => &$this->_stderr,
         );
         $this->_exitcode = self::exec($this->getFullCommand(), $buffers, $this->_callback, $this->_cwd, $this->_env, $this->_conf);
+        $this->_timeend = microtime(true);
 
         if ($this->_throw && $this->_exitcode !== 0) {
-            throw new CommandException($this, "Command failed '".$this->getFullCommand()."':\n".trim($this->getStdErr()));
+            throw new CommandException($this, "Command failed '$this':\n".trim($this->getStdErr()));
         }
 
         return $this;
@@ -250,6 +254,17 @@ class Command
         return $this->_stderr;
     }
 
+    /**
+     * Gets the duration of the command execution
+     *
+     * @param bool $microseconds If true, return microseconds (float), otherwise seconds (int)
+     * @return int|float
+     */
+    public function getDuration($microseconds=false)
+    {
+        $duration = $this->_timeend - $this->_timestart;
+        return $microseconds? $duration: round($duration);
+    }
 
     /**
      * Executes a command returning the exitcode and capturing the stdout and stderr

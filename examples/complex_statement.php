@@ -9,15 +9,11 @@ $no_escape = true;
 
 // This example probably only works in real BASH on Linux/UNIX
 // It will output a sorted list of directories in the $PATH
-//$cmd = Command::factory('IFS=":"; (for DIR in $PATH; do echo $DIR; done) | sort', $escape)->run();
-$cmd = Command::factory('IFS=":"; (for DIR in $PATH; do echo $DIR; done) | sort', $no_escape)->run();
+$cmd = Command::factory('IFS=":"; (for DIR in $PATH; do echo $DIR; done) | sort', $no_escape)
+    // Throw an exception if it fails
+    ->useExceptions()
+    ->run();
 
-if ($cmd->getExitCode() === 0) {
-	echo "STDOUT:\n";
-    echo $cmd->getStdOut();
-} else {
-	echo "STDERR:\n";
-    echo $cmd->getStdErr();
-}
+echo $cmd->getStdOut();
 
 echo "Done.\n";
