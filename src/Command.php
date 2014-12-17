@@ -185,7 +185,7 @@ class Command
     /**
      * Runs the command
      *
-     * @param string $stdin
+     * @param string|resource $stdin The string contents for STDIN or a stream resource to be consumed
      * @param bool $throw_exceptions If true (default), an exception will be thrown if the command fails
      * @return Command - Fluent interface
      */
@@ -312,9 +312,18 @@ class Command
         }
 
         // Feed the process with the stdin if any and close it
-        if (!empty($buffers[self::STDIN])) {
-        fwrite($pipes[self::STDIN], $buffers[self::STDIN]);
+        $stdin = $buffers[self::STDIN];
+        if (is_resource($stdin)) {
+            // It seems this method is less memory-intensive that the stream copying builtin:
+            //   stream_copy_to_stream(resource $source, resource $dest)
+            while(!feof($stdin)) {
+                fwrite($pipes[self::STDIN], fread($stdin, $readbuffer));
+            }
+
+        } else if (!empty($stdin)) {
+            fwrite($pipes[self::STDIN], $stdin);
         }
+
         fclose($pipes[self::STDIN]);
 
         // Setup non-blocking behaviour for stdout and stderr

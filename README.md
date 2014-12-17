@@ -92,6 +92,59 @@ $cmd = Command::factory('grep CRON < /var/log/syslog | head', true)
     ->run();
 ```
 
+## Using STDIN
+You can provide data for STDIN using a string or a stream resource (like a file handle)
+
+### STDIN from a String
+
+```php
+use kamermans\Command\Command;
+
+$stdin = "banana
+orange
+apple
+pear
+";
+
+$cmd = Command::factory("sort")
+    ->run($stdin);
+
+echo $cmd->getStdOut();
+```
+
+### STDIN from a Stream
+
+```php
+use kamermans\Command\Command;
+
+$filename = __DIR__.'/../README.md';
+$stdin = fopen($filename, 'r');
+
+// This will count the number of words in the README.md file
+$cmd = Command::factory("wc")
+    ->option("--words")
+    ->run($stdin);
+
+fclose($stdin);
+
+$words = trim($cmd->getStdOut());
+echo "File $filename contains $words words\n";
+```
+
+Your system's `STDIN` is also a stream, so you can accept input that is typed on the command line or piped into your script as well:
+
+```php
+use kamermans\Command\Command;
+
+echo "Type some words, one per line, then press CTRL-D and they will be sorted:\n";
+
+$cmd = Command::factory("sort")
+    // This causes Command to use the real STDIN
+    ->run(STDIN);
+
+echo "\n";
+echo $cmd->getStdOut();
+```
 
 Some more features:
  - `StdIn` data can be provided to the process as a parameter to `run()`
