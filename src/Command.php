@@ -22,19 +22,19 @@ class Command
     // Multiplying rate to increase the number of milliseconds to sleep
     const SLEEP_FACTOR = 1.5;
 
-    protected $_readbuffer = 4096;
+    protected $_readbuffer = 16536;
     protected $_separator = ' ';
-    protected $_cmd = null;
+    protected $_cmd;
     protected $_args = array();
-    protected $_throw = false;
-    protected $_exitcode = null;
-    protected $_stdout = null;
-    protected $_stderr = null;
-    protected $_callback = null;
-    protected $_timestart = null;
-    protected $_timeend = null;
-    protected $_cwd = null;
-    protected $_env = null;
+    protected $_exitcode;
+    protected $_stdout;
+    protected $_stderr;
+    protected $_callback;
+    protected $_callbacklines = false;
+    protected $_timestart;
+    protected $_timeend;
+    protected $_cwd;
+    protected $_env;
     protected $_conf = array();
 
     /**
@@ -60,12 +60,14 @@ class Command
      * The second argument is either a string with the available data or null to 
      * indicate the eof.
      *
-     * @param callback $callback
+     * @param callable $callback Callable like function($pipe, $data){}
+     * @param bool $readlines If true, callback is called for each line instead of the buffer size
      * @return Command - Fluent
      */
-    public function setCallback($callback)
+    public function setCallback(callable $callback, $readlines=false)
     {
         $this->_callback = $callback;
+        $this->_callbacklines = $readlines;
         return $this;
     }
     
@@ -134,19 +136,6 @@ class Command
     }
 
     /**
-     * If true, throw exceptions if a command fails (returns a non-zero exit code),
-     * this is similar to "set -e" in bash.
-     *
-     * @param bool $use True to use exceptions, false to fail silently (default)
-     * @return Command - Fluent interface
-     */
-    public function useExceptions($use=true)
-    {
-        $this->_throw = (bool)$use;
-        return $this;
-    }
-
-    /**
      * Sets the command to run
      *
      * @param string $cmd
@@ -197,9 +186,10 @@ class Command
      * Runs the command
      *
      * @param string $stdin
+     * @param bool $throw_exceptions If true (default), an exception will be thrown if the command fails
      * @return Command - Fluent interface
      */
-    public function run($stdin = null)
+    public function run($stdin = null, $throw_exceptions = true)
     {
         // Clear previous run
         $this->_exitcode = null;
@@ -213,10 +203,10 @@ class Command
             1 => &$this->_stdout,
             2 => &$this->_stderr,
         );
-        $this->_exitcode = self::exec($this->getFullCommand(), $buffers, $this->_callback, $this->_cwd, $this->_env, $this->_conf);
+        $this->_exitcode = self::exec($this->getFullCommand(), $buffers, $this->_callback, $this->_callbacklines, $this->_readbuffer, $this->_cwd, $this->_env, $this->_conf);
         $this->_timeend = microtime(true);
 
-        if ($this->_throw && $this->_exitcode !== 0) {
+        if ($throw_exceptions && $this->_exitcode !== 0) {
             throw new CommandException($this, "Command failed '$this':\n".trim($this->getStdErr()));
         }
 
@@ -235,7 +225,8 @@ class Command
      */
     public function getFullCommand()
     {
-        return $this->_cmd . ' ' . implode(' ', $this->_args);
+        $parts = array_merge(array($this->_cmd), $this->_args);
+        return implode($this->_separator, $parts);
     }
 
     /**
@@ -280,6 +271,11 @@ class Command
         return $microseconds? $duration: round($duration);
     }
 
+    public static function echoStdErr($content)
+    {
+        fputs(STDERR, $content);
+    }
+
     /**
      * Executes a command returning the exitcode and capturing the stdout and stderr
      *
@@ -288,13 +284,15 @@ class Command
      *  0 - StdIn contents to be passed to the command (optional)
      *  1 - StdOut contents returned by the command execution
      *  2 - StdOut contents returned by the command execution
-     * @param callback $callback  A callback function for stdout/stderr data
+     * @param callable $callback  A callback function for stdout/stderr data
+     * @param bool $callbacklines Call callback for each line
+     * @param int $readbuffer Read this many bytes at a time
      * @param string $cwd Set working directory
      * @param array $env Environment variables for the process
      * @param array $conf Additional options for proc_open()
      * @return int
      */
-    static function exec($cmd, &$buffers, $callback = null, $cwd = null, $env = null, $conf = null)
+    public static function exec($cmd, &$buffers, $callback = null, $callbacklines = false, $readbuffer = 16536, $cwd = null, $env = null, $conf = null)
     {
         if (!is_array($buffers)) {
             $buffers = array();
@@ -341,15 +339,37 @@ class Command
             // Go thru all open pipes and check for data
             foreach ($open as $i=>$pipe) {
                 // Try to get some data
-                $str = fread($pipes[$pipe], $this->_readbuffer);
+                $str = fread($pipes[$pipe], $readbuffer);
                 if (strlen($str)) {
+                    $buffers[$pipe] .= $str;
+                    
                     if ($callback) {
-                        $str = call_user_func($callback, $pipe, $str);
-                        if ($str === false) {
-                            break 2;
+                        if ($callbacklines) {
+                            // Note: \r will be left in the line in case of CRLF,
+                            // and we will need to add \n to the end of each line
+                            $lines = explode("\n", $buffers[$pipe]);
+
+                            // This is left over and does not end with the delimiter
+                            $buffers[$pipe] = array_pop($lines);
+
+                            foreach ($lines as $line) {
+                                $callback_return = call_user_func($callback, $pipe, "$line\n");
+                                if ($callback_return === false) {
+                                    // We killed the proc early, set code to 0
+                                    $code = 0;
+                                    break 3;
+                                }
+                            }
+                            
+                        } else {
+                            $callback_return = call_user_func($callback, $pipe, $buffers[$pipe]);
+                            $buffers[$pipe] = '';
+                            if ($callback_return === false) {
+                                // We killed the proc early, set code to 0
+                                $code = 0;
+                                break 2;
+                            }
                         }
-                    } else {
-                        $buffers[$pipe] .= $str;
                     }
 
                     // Since we've got some data we don't need to sleep :)
