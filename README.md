@@ -1,15 +1,21 @@
 command
 =======
 
-External command runner / executor for PHP
+External command runner / executor for PHP.  This is an object oriented, robust replacement for `exec`, `shell_exec`, the backtick operator and the like.
 
-Taken from http://pollinimini.net/blog/php-command-runner/ and hosted here for maintenance, improvement and use with Packagist
+~~Taken from http://pollinimini.net/blog/php-command-runner/ and hosted here for maintenance, improvement and use with Packagist~~
+
+This package is diverging heavily from the original project, and it will continue to diverge.
+
+## Running Commands
 
 At its simplest form, you can execute commands like this:
 
 ```php
 $cmd = Command::factory('ls')->run();
 ```
+
+### Adding Arguments and Options
 
 Here we are safely adding arguments:
 
@@ -22,34 +28,40 @@ $cmd->option('--username', 'drslump')
     ->option('log')
     ->argument('http://code.google.com/drslump/trunk');
     ->run();
-if ($cmd->getExitCode() === 0) {
-    echo $cmd->getStdOut();
-} else {
-    echo $cmd->getStdErr();
-}
+
+echo $cmd->getStdOut();
 ```
 
-Incremental updates can be accomplished with a callback function, like in the following example (PHP 5.3+):
+### Using a Callback for Incremental Updates
+Normally all command output is buffered and once the command completes you can access it.  By using a callback, the output is buffered until the desired number of bytes is received (see `Command::setReadBuffer(int $bytes)`), then it is passed to your callback function:
+
+```php
+use kamermans\Command\Command;
+
+$cmd = Command::factory('ls');
+$cmd->setCallback(function($pipe, $data) {
+        // Gets run for every 4096 bytes
+        echo $data;
+    })
+    ->setReadBuffer(4096)
+    ->setDirectory('/tmp')
+    ->option('-l')
+    ->run();
+```
+
+Alternately, you can set the second argument for `Command::run(string $stdin, bool $lines)` to `true` to execute your callback once for every line of output:
 
 ```php
 use kamermans\Command\Command;
 
 $cmd = Command::factory('ls');
 $cmd->setCallback(function($pipe, $data){
-        if ($pipe === Command::STDOUT) echo 'STDOUT: ';
-        if ($pipe === Command::STDERR) echo 'STDERR: ';
-        echo $data === NULL ? "EOF\n" : "$data\n";
-        // If we return "false" all pipes will be closed
-        // return false;
+        // Gets run for each line of output
+        echo $data;
     })
     ->setDirectory('/tmp')
     ->option('-l')
-    ->run();
-if ($cmd->getExitCode() === 0) {
-    echo $cmd->getStdOut();
-} else {
-    echo $cmd->getStdErr();
-}
+    ->run(null, true);
 ```
 
 Some more features:
