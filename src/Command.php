@@ -15,9 +15,6 @@ class Command
     const STDOUT = 1;
     const STDERR = 2;
 
-    // Maximum number of bytes to read at once
-    const READ_BUFFER_MAX = 4096;
-
     // Maximum number of milliseconds to sleep while pooling for data
     const SLEEP_MAX = 200;
     // Number of milliseconds to sleep the first time
@@ -25,6 +22,7 @@ class Command
     // Multiplying rate to increase the number of milliseconds to sleep
     const SLEEP_FACTOR = 1.5;
 
+    protected $_readbuffer = 4096;
     protected $_separator = ' ';
     protected $_cmd = null;
     protected $_args = array();
@@ -68,6 +66,22 @@ class Command
     public function setCallback($callback)
     {
         $this->_callback = $callback;
+        return $this;
+    }
+    
+    /**
+     * Read no more than this many bytes at a time
+     * 
+     * @param int $bytes
+     * @reutrn Command - Fluent
+     */
+    public function setReadBuffer($bytes)
+    {
+        $bytes = (int)$bytes;
+        if ($bytes <= 0) {
+            throw new \InvalidArgumentException("Read buffer must be greater than 0");
+        }
+        $this->_readbuffer = $bytes;
         return $this;
     }
 
@@ -327,7 +341,7 @@ class Command
             // Go thru all open pipes and check for data
             foreach ($open as $i=>$pipe) {
                 // Try to get some data
-                $str = fread($pipes[$pipe], self::READ_BUFFER_MAX);
+                $str = fread($pipes[$pipe], $this->_readbuffer);
                 if (strlen($str)) {
                     if ($callback) {
                         $str = call_user_func($callback, $pipe, $str);
