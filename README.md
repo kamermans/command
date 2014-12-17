@@ -22,8 +22,8 @@ Here we are safely adding arguments:
 ```php
 use kamermans\Command\Command;
 
-$cmd = Command::factory('/usr/bin/svn');
-$cmd->option('--username', 'drslump')
+$cmd = Command::factory('/usr/bin/svn')
+    ->option('--username', 'drslump')
     ->option('-r', 'HEAD')
     ->option('log')
     ->argument('http://code.google.com/drslump/trunk');
@@ -38,8 +38,8 @@ Normally all command output is buffered and once the command completes you can a
 ```php
 use kamermans\Command\Command;
 
-$cmd = Command::factory('ls');
-$cmd->setCallback(function($pipe, $data) {
+$cmd = Command::factory('ls')
+    ->setCallback(function($pipe, $data) {
         // Gets run for every 4096 bytes
         echo $data;
     })
@@ -54,8 +54,8 @@ Alternately, you can set the second argument for `Command::run(string $stdin, bo
 ```php
 use kamermans\Command\Command;
 
-$cmd = Command::factory('ls');
-$cmd->setCallback(function($pipe, $data){
+$cmd = Command::factory('ls')
+    ->setCallback(function($pipe, $data){
         // Gets run for each line of output
         echo $data;
     })
@@ -63,6 +63,35 @@ $cmd->setCallback(function($pipe, $data){
     ->option('-l')
     ->run(null, true);
 ```
+
+### Running a Command without Escaping
+By default, the command passed to `Command::factory(string $command, bool $escape)` is escaped, so characters like `|` and `>` will replaced with `\|` and `\>` respectively.  To prevent the command factory from escaping your command, you can pass `true` as the second argument:
+
+```php
+use kamermans\Command\Command;
+
+$cmd = Command::factory('grep CRON < /var/log/syslog | head', true)->run();
+
+echo $cmd->getStdOut();
+```
+
+### Outputting to STDERR
+To output content to your `STDERR` there is a helper function `Command::echoStdErr(string $content)`:
+
+```php
+use kamermans\Command\Command;
+
+$cmd = Command::factory('grep CRON < /var/log/syslog | head', true)
+    ->setCallback(function($pipe,$data) {
+        if ($pipe === Command::STDERR) {
+            Command::echoStdErr($data);
+        } else {
+            echo $data;
+        }
+    })
+    ->run();
+```
+
 
 Some more features:
  - `StdIn` data can be provided to the process as a parameter to `run()`
