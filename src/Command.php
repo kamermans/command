@@ -312,16 +312,28 @@ class Command
         }
 
         // Prepare STDIN
-        $stdin_position = 0;
         $stdin = $buffers[self::STDIN];
         $stdin_is_stream = is_resource($stdin);
         $use_stdin = $stdin_is_stream || !empty($stdin);
-        $stdin_length = null;
         
         if (!$use_stdin) {
             fclose($pipes[self::STDIN]);
-        } else if (!$stdin_is_stream) {
-            $stdin_length = strlen($stdin);
+        } else if (is_resource($buffers[self::STDIN])) {
+            $input_stream = new Stream\StreamWriter($buffers[self::STDIN], $pipes[self::STDIN], $readbuffer);
+        } else {
+            $input_stream = new Stream\StringWriter($buffers[self::STDIN], $pipes[self::STDIN], $readbuffer);
+        }
+
+        // Prepare STDOUT and STDERR
+        if ($callback === null) {
+            $stdout_stream = new Stream\StringReader($pipes[self::STDOUT], self::STDOUT, $buffers[self::STDOUT], $readbuffer);
+            $stderr_stream = new Stream\StringReader($pipes[self::STDERR], self::STDERR, $buffers[self::STDERR], $readbuffer);
+        } else if ($callbacklines) {
+            $stdout_stream = new Stream\CallbackLinesReader($pipes[self::STDOUT], self::STDOUT, $callback, $readbuffer);
+            $stderr_stream = new Stream\CallbackLinesReader($pipes[self::STDERR], self::STDERR, $callback, $readbuffer);
+        } else {
+            $stdout_stream = new Stream\CallbackReader($pipes[self::STDOUT], self::STDOUT, $callback, $readbuffer);
+            $stderr_stream = new Stream\CallbackReader($pipes[self::STDERR], self::STDERR, $callback, $readbuffer);
         }
 
         // Setup all streams to non-blocking mode
@@ -334,12 +346,7 @@ class Command
         $stream_select_timeout_sec = null;
         $stream_select_timeout_usec = 200000;
 
-        $delay = 0;
-        $code = null;
-
-        $buffers[self::STDIN] = '';
-        $buffers[self::STDOUT] = empty($buffers[self::STDOUT]) ? '' : $buffers[self::STDOUT];
-        $buffers[self::STDERR] = empty($buffers[self::STDERR]) ? '' : $buffers[self::STDERR];
+        $exit_code = null;
 
         // Read from the process' STDOUT and STDERR
         $reads = [
@@ -352,12 +359,6 @@ class Command
             $pipes[self::STDIN],
         ];
 
-        $stream_id_map = [
-            self::STDIN => $pipes[self::STDIN],
-            self::STDOUT => $pipes[self::STDOUT],
-            self::STDERR => $pipes[self::STDERR],
-        ];
-
         // We will do a final, blocking read on all streams after the process exists
         $last_read_loop = false;
 
@@ -367,7 +368,7 @@ class Command
             // Setup streams before each iteration since they are changed by stream_select()
             $streams = [
                 'read'  => array_filter($reads, 'is_resource'),
-                'write' => array_filter($writes, 'is_resource'),
+                'write' => $use_stdin? array_filter($writes, 'is_resource'): [],
                 'except' => [],
             ];
 
@@ -381,14 +382,14 @@ class Command
             );
 
             // Try to find the exit code of the command before buggy proc_close()
-            if ($code === null || $last_read_loop === true) {
+            if ($exit_code === null || $last_read_loop === true) {
 
                 $status = proc_get_status($ph);
 
                 if (!$status['running']) {
 
-                    if ($code === null) {
-                        $code = $status['exitcode'];
+                    if ($exit_code === null) {
+                        $exit_code = $status['exitcode'];
                     }
 
                     if ($last_read_loop) {
@@ -417,92 +418,23 @@ class Command
 
             // Read from all ready streams
             foreach ($streams['read'] as $stream) {
+                try {
 
-                $stream_id = array_search($stream, $stream_id_map, true);
-
-                $str = stream_get_contents($stream, $readbuffer);
-                if (strlen($str) !== 0) {
-                    $buffers[$stream_id] .= $str;
-                    
-                    if ($callback) {
-                        if ($callbacklines) {
-                            // Note: \r will be left in the line in case of CRLF,
-                            // and we will need to add \n to the end of each line
-                            $lines = explode("\n", $buffers[$stream_id]);
-
-                            // This is left over and does not end with the delimiter
-                            $buffers[$stream_id] = array_pop($lines);
-
-                            foreach ($lines as $line) {
-                                $callback_return = call_user_func($callback, $stream_id, "$line\n");
-                                if ($callback_return === false) {
-                                    // We killed the proc early, set code to 0
-                                    $code = 0;
-
-                                    // Break out of the read/write loop
-                                    break 3;
-                                }
-                            }
-                            
-                        } else {
-                            $callback_return = call_user_func($callback, $stream_id, $buffers[$stream_id]);
-                            $buffers[$stream_id] = '';
-                            if ($callback_return === false) {
-                                // We killed the proc early, set code to 0
-                                $code = 0;
-
-                                // Break out of the read/write loop
-                                break 2;
-                            }
-                        }
+                    if ($stream === $pipes[self::STDOUT]) {
+                        $stdout_stream->read();
+                    } else {
+                        $stderr_stream->read();
                     }
 
+                } catch (TerminateException $e) {
+                    // We killed the proc early, set code to 0
+                    $exit_code = 0;
                 }
             }
 
             // Write to all write ready streams (STDIN of the process)
-            foreach ($streams['write'] as $stream) {
-                
-                $stream_id = array_search($stream, $stream_id_map, true);
-
-                if ($stdin_is_stream) {
-
-                    // If STDIN is empty and the send buffer is empty, close the stream
-                    if (feof($stdin) && strlen($buffers[$stream_id]) === 0) {
-                        fclose($stream);
-                    } else {
-                        if (!feof($stdin) && strlen($buffers[$stream_id]) < $readbuffer) {
-                            // The STDIN buffer is running low
-                            $buffers[$stream_id] .= stream_get_contents($stdin, $readbuffer);
-                        }
-
-                        $bytes_written = fwrite($stream, $buffers[$stream_id]);
-
-                        if ($bytes_written === false) {
-                            continue;
-                        }
-
-                        $buffer_length = strlen($buffers[$stream_id]);
-
-                        if ($bytes_written === $buffer_length) {
-                            $buffers[$stream_id] = '';
-                        } else {
-                            // Only part of the buffer was written so we remove that part
-                            $buffers[$stream_id] = substr($buffers[$stream_id], $bytes_written);
-                        }
-                    }
-
-                } else {
-
-                    // If we have written all the data, close the stream
-                    if ($stdin_position >= $stdin_length) {
-                        fclose($stream);
-                    } else {
-                        $chunk = substr($stdin, $stdin_position, $readbuffer);
-                        $bytes_written = fwrite($stream, $chunk);
-                        $stdin_position += $bytes_written;
-                    }
-                }
+            if (!empty($streams['write'])) {
+                $input_stream->write();
             }
 
         } // End read/write loop
@@ -524,12 +456,12 @@ class Command
         }
 
         // Find out the exit code
-        if ($code === null) {
-            $code = proc_close($ph);
+        if ($exit_code === null) {
+            $exit_code = proc_close($ph);
         } else {
             proc_close($ph);
         }
 
-        return $code;
+        return $exit_code;
     }
 }

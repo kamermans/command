@@ -9,8 +9,8 @@ $stdin = fopen($filename, 'r');
 
 // This will count the number of words in the README.md file
 $cmd = Command::factory("wc")
-	->option("--words")
-	->run($stdin);
+    ->option("--words")
+    ->run($stdin);
 
 fclose($stdin);
 
