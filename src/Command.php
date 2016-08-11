@@ -332,7 +332,7 @@ class Command
         }
 
         $stream_select_timeout_sec = null;
-        $stream_select_timeout_usec = null;
+        $stream_select_timeout_usec = 200000;
 
         $delay = 0;
         $code = null;
@@ -358,6 +358,9 @@ class Command
             self::STDERR => $pipes[self::STDERR],
         ];
 
+        // We will do a final, blocking read on all streams after the process exists
+        $last_read_loop = false;
+
         // Read/write loop
         while (true) {
 
@@ -378,20 +381,37 @@ class Command
             );
 
             // Try to find the exit code of the command before buggy proc_close()
-            if ($code === null) {
+            if ($code === null || $last_read_loop === true) {
+
                 $status = proc_get_status($ph);
+
                 if (!$status['running']) {
-                    $code = $status['exitcode'];
-                    break;
+
+                    if ($code === null) {
+                        $code = $status['exitcode'];
+                    }
+
+                    if ($last_read_loop) {
+                        // Process exited, close write streams
+                        array_map('fclose', array_filter($writes, 'is_resource'));
+
+                        // Set read streams to blocking mode so we can get all the remaining data
+                        foreach (array_filter($reads, 'is_resource') as $stream) {
+                            stream_set_blocking($stream, true);
+                        }
+
+                        // Break out of the read/write loop
+                        break;
+                    } else {
+                        $last_read_loop = true;
+                    }
                 }
             }
 
             if ($ready_streams === 0) {
                 // Stream timeout; no streams ready, retry stream_select
                 continue;
-            }
-
-            if ($ready_streams === false) {
+            } else if ($ready_streams === false) {
                 throw new \Exception("stream_select() failed while waiting for I/O on command");
             }
 
@@ -418,6 +438,8 @@ class Command
                                 if ($callback_return === false) {
                                     // We killed the proc early, set code to 0
                                     $code = 0;
+
+                                    // Break out of the read/write loop
                                     break 3;
                                 }
                             }
@@ -428,14 +450,13 @@ class Command
                             if ($callback_return === false) {
                                 // We killed the proc early, set code to 0
                                 $code = 0;
+
+                                // Break out of the read/write loop
                                 break 2;
                             }
                         }
                     }
 
-                    // Since we've got some data we don't need to sleep :)
-                    $delay = 0;
-                // Check if we have consumed all the data in the current pipe
                 }
             }
 
@@ -445,12 +466,12 @@ class Command
                 $stream_id = array_search($stream, $stream_id_map, true);
 
                 if ($stdin_is_stream) {
-                    // It seems this method is less memory-intensive that the stream copying builtin:
-                    //   stream_copy_to_stream(resource $source, resource $dest)
-                    if (feof($stdin)) {
+
+                    // If STDIN is empty and the send buffer is empty, close the stream
+                    if (feof($stdin) && strlen($buffers[$stream_id]) === 0) {
                         fclose($stream);
                     } else {
-                        if (strlen($buffers[$stream_id]) < $readbuffer) {
+                        if (!feof($stdin) && strlen($buffers[$stream_id]) < $readbuffer) {
                             // The STDIN buffer is running low
                             $buffers[$stream_id] .= stream_get_contents($stdin, $readbuffer);
                         }
@@ -472,6 +493,8 @@ class Command
                     }
 
                 } else {
+
+                    // If we have written all the data, close the stream
                     if ($stdin_position >= $stdin_length) {
                         fclose($stream);
                     } else {
