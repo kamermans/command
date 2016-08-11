@@ -325,9 +325,11 @@ class Command
         }
 
         // Setup all streams to non-blocking mode
-        stream_set_blocking($pipes[self::STDIN], false);
-        stream_set_blocking($pipes[self::STDOUT], false);
-        stream_set_blocking($pipes[self::STDERR], false);
+        foreach ($pipes as $pipe) {
+            if (is_resource($pipe)) {
+                stream_set_blocking($pipe, false);
+            }
+        }
 
         $stream_select_timeout_sec = null;
         $stream_select_timeout_usec = null;
