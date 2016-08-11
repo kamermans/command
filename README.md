@@ -64,6 +64,35 @@ $cmd = Command::factory('ls')
     ->run(null, true);
 ```
 
+### Streaming large command output
+The STDOUT and STDERR is collected inside PHP by default.  If you have a large amount of data to pass into the command, you should stream it in (see STDIN from a stream below).  If you have a large amount of output from the command, you should stream it out using a callback:
+
+```php
+use kamermans\Command\Command;
+
+require_once __DIR__.'/../vendor/autoload.php';
+
+$filename = __DIR__.'/../README.md';
+$stdin = fopen($filename, 'r');
+
+// This will read README.md and grep for lines containing 'the'
+$cmd = Command::factory("grep 'the'")
+    ->setCallback(function($pipe, $data) {
+        // Change the text to uppercase
+        $data = strtoupper($data);
+
+        if ($pipe === Command::STDERR) {
+            Command::echoStdErr($data);
+        } else {
+            echo $data;
+        }
+    })
+    ->run($stdin);
+
+fclose($stdin);
+
+```
+
 ### Running a Command without Escaping
 By default, the command passed to `Command::factory(string $command, bool $escape)` is escaped, so characters like `|` and `>` will replaced with `\|` and `\>` respectively.  To prevent the command factory from escaping your command, you can pass `true` as the second argument:
 
