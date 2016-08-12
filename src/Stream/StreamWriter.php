@@ -26,11 +26,13 @@ class StreamWriter implements Writer {
         $this->buffer_size = $buffer_size;
     }
 
-    public function write()
+    public function write($auto_close=true)
     {
         // If stream is empty and the send buffer is empty, close the stream
         if (feof($this->stream) && strlen($this->buffer) === 0) {
-            fclose($this->dest_stream);
+            if ($auto_close && is_resource($this->dest_stream)) {
+                fclose($this->dest_stream);
+            }
             return false;
         }
 

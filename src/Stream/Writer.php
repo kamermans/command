@@ -2,7 +2,7 @@
 
 interface Writer {
 
-    public function write();
+    public function write($auto_close=true);
     public function getBytes();
 
 }

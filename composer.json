@@ -11,10 +11,13 @@
     "require": {
         "php": ">=5.4"
     },
+    "require-dev": {
+        "php": ">=5.5",
+        "phpunit/phpunit": "4.*"
+    },
     "autoload": {
         "psr-4": {
-            "kamermans\\Command\\" : ["src/","test/"]
+            "kamermans\\Command\\" : ["src/","test/src/"]
         }
-    },
-    "minimum-stability": "dev"
+    }
 }

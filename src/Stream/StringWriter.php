@@ -21,11 +21,13 @@ class StringWriter implements Writer {
         $this->buffer_size = $buffer_size;
     }
 
-    public function write()
+    public function write($auto_close=true)
     {
         // If we have written all the data, close the stream
         if ($this->position >= $this->data_length) {
-            fclose($this->dest_stream);
+            if ($auto_close && is_resource($this->dest_stream)) {
+                fclose($this->dest_stream);
+            }
             return false;
         } else {
             $chunk = substr($this->data, $this->position, $this->buffer_size);
