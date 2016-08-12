@@ -3,5 +3,6 @@
 interface Writer {
 
     public function write();
+    public function getBytes();
 
 }

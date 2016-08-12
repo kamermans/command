@@ -7,8 +7,9 @@ class CallbackLinesReader extends CallbackReader {
     public function read()
     {
         $buffer = $this->getBytesFromStream();
-        if (strlen($buffer) === 0) {
-            return;
+        $bytes = strlen($buffer);
+        if ($bytes === 0) {
+            return 0;
         }
 
         $this->buffer .= $buffer;
@@ -27,5 +28,8 @@ class CallbackLinesReader extends CallbackReader {
                 throw new TerminateException();
             }
         }
+
+        $this->bytes += $bytes;
+        return $bytes;
     }
 }

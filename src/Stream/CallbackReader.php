@@ -21,8 +21,9 @@ class CallbackReader extends StringReader {
     public function read()
     {
         $buffer = $this->getBytesFromStream();
-        if (strlen($buffer) === 0) {
-            return;
+        $bytes = strlen($buffer);
+        if ($bytes === 0) {
+            return 0;
         }
 
         $callback_return = call_user_func($this->callback, $this->stream_id, $buffer);
@@ -30,5 +31,8 @@ class CallbackReader extends StringReader {
         if ($callback_return === false) {
             throw new TerminateException();
         }
+
+        $this->bytes += $bytes;
+        return $bytes;
     }
 }

@@ -7,6 +7,7 @@ class StreamWriter implements Writer {
     protected $dest_stream;
     protected $buffer;
     protected $buffer_size;
+    protected $bytes = 0;
 
     public function __construct($source_stream, $dest_stream, $buffer_size=4096)
     {
@@ -41,7 +42,7 @@ class StreamWriter implements Writer {
         $bytes_written = fwrite($this->dest_stream, $this->buffer);
 
         if ($bytes_written === false) {
-            continue;
+            return 0;
         }
 
         $current_buffer_length = strlen($this->buffer);
@@ -53,8 +54,14 @@ class StreamWriter implements Writer {
             $this->buffer = substr($this->buffer, $bytes_written);
         }
 
+        $this->bytes += $bytes_written;
         return $bytes_written;
 
+    }
+
+    public function getBytes()
+    {
+        return $this->bytes;
     }
 
 }

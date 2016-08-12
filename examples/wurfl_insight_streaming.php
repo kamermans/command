@@ -41,6 +41,11 @@ $cmd = Command::factory("wurfld-cli")
             return;
         }
 
+        if ($data === null) {
+            // End of stream reached
+            return;
+        }
+
         $data_fields = explode("\t", rtrim($data, "\n"));
         $fields_missing = count($wurfl_fields) - count($data_fields);
         if ($fields_missing !== 0) {

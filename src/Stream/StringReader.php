@@ -7,6 +7,7 @@ class StringReader implements Reader {
     protected $stream_id;
     protected $buffer_size;
     protected $buffer;
+    protected $bytes = 0;
 
     public function __construct($stream, $stream_id, &$buffer, $buffer_size=4096)
     {
@@ -23,7 +24,17 @@ class StringReader implements Reader {
 
     public function read()
     {
+        $before = strlen($this->buffer);
         $this->buffer .= $this->getBytesFromStream();
+        $bytes = strlen($this->buffer) - $before;
+        $this->bytes += $bytes;
+
+        return $bytes;
+    }
+
+    public function getBytes()
+    {
+        return $this->bytes;
     }
 
     protected function getBytesFromStream()

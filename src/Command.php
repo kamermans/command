@@ -11,31 +11,24 @@
  */
 class Command
 {
-    const STDIN = 0;
+    const STDIN  = 0;
     const STDOUT = 1;
     const STDERR = 2;
 
-    // Maximum number of milliseconds to sleep while pooling for data
-    const SLEEP_MAX = 200;
-    // Number of milliseconds to sleep the first time
-    const SLEEP_START = 1;
-    // Multiplying rate to increase the number of milliseconds to sleep
-    const SLEEP_FACTOR = 1.5;
-
-    protected $_readbuffer = 16536;
-    protected $_separator = ' ';
-    protected $_cmd;
-    protected $_args = [];
-    protected $_exitcode;
-    protected $_stdout;
-    protected $_stderr;
-    protected $_callback;
-    protected $_callbacklines = false;
-    protected $_timestart;
-    protected $_timeend;
-    protected $_cwd;
-    protected $_env;
-    protected $_conf = [];
+    protected $readbuffer = 16536;
+    protected $separator = ' ';
+    protected $cmd;
+    protected $args = [];
+    protected $exitcode;
+    protected $stdout;
+    protected $stderr;
+    protected $callback;
+    protected $callbacklines = false;
+    protected $timestart;
+    protected $timeend;
+    protected $cwd;
+    protected $env;
+    protected $conf = [];
 
     /**
      * Creates a new Command object
@@ -66,8 +59,8 @@ class Command
      */
     public function setCallback(callable $callback, $readlines=false)
     {
-        $this->_callback = $callback;
-        $this->_callbacklines = $readlines;
+        $this->callback = $callback;
+        $this->callbacklines = $readlines;
         return $this;
     }
     
@@ -83,7 +76,7 @@ class Command
         if ($bytes <= 0) {
             throw new \InvalidArgumentException("Read buffer must be greater than 0");
         }
-        $this->_readbuffer = $bytes;
+        $this->readbuffer = $bytes;
         return $this;
     }
 
@@ -95,7 +88,7 @@ class Command
      */
     public function setDirectory($cwd)
     {
-        $this->_cwd = $cwd;
+        $this->cwd = $cwd;
         return $this;
     }
 
@@ -107,7 +100,7 @@ class Command
      */
     public function setEnv($env = [])
     {
-        $this->_env = $env;
+        $this->env = $env;
         return $this;
     }
 
@@ -119,7 +112,7 @@ class Command
      */
     public function setBinary($binary = true)
     {
-        $this->_conf['binary_pipes'] = $binary;
+        $this->conf['binary_pipes'] = $binary;
         return $this;
     }
 
@@ -131,7 +124,7 @@ class Command
      */
     public function setOptionSeparator($sep)
     {
-        $this->_separator = $sep;
+        $this->separator = $sep;
         return $this;
     }
 
@@ -144,7 +137,7 @@ class Command
      */
     public function command($cmd, $noescape = false)
     {
-        $this->_cmd = $noescape ? $cmd : escapeshellcmd($cmd);
+        $this->cmd = $noescape ? $cmd : escapeshellcmd($cmd);
         return $this;
     }
 
@@ -163,10 +156,10 @@ class Command
             if (empty($right)) {
                 $right = "''";
             }
-            $left .= ($sep === null ? $this->_separator : $sep) . $right;
+            $left .= ($sep === null ? $this->separator : $sep) . $right;
         }
 
-        $this->_args[] = $left;
+        $this->args[] = $left;
 
         return $this;
     }
@@ -178,7 +171,7 @@ class Command
      * @return Command - Fluent interface
      */
     public function argument($arg) {
-        $this->_args[] = escapeshellarg($arg);
+        $this->args[] = escapeshellarg($arg);
         return $this;
     }
 
@@ -192,21 +185,24 @@ class Command
     public function run($stdin = null, $throw_exceptions = true)
     {
         // Clear previous run
-        $this->_exitcode = null;
-        $this->_stdout = null;
-        $this->_stderr = null;
-        $this->_timestart = microtime(true);
+        $this->exitcode = null;
+        $this->stdout = null;
+        $this->stderr = null;
+        $this->timestart = microtime(true);
+
+        $process = new ProcessManager($this->getFullCommand(), $buffers);
 
         // Prepare the buffers structure
         $buffers = [
-            0 => $stdin,
-            1 => &$this->_stdout,
-            2 => &$this->_stderr,
+            self::STDIN  => $stdin,
+            self::STDOUT => &$this->stdout,
+            self::STDERR => &$this->stderr,
         ];
-        $this->_exitcode = self::exec($this->getFullCommand(), $buffers, $this->_callback, $this->_callbacklines, $this->_readbuffer, $this->_cwd, $this->_env, $this->_conf);
-        $this->_timeend = microtime(true);
 
-        if ($throw_exceptions && $this->_exitcode !== 0) {
+        $this->exitcode = $process->exec($this->callback, $this->callbacklines, $this->readbuffer, $this->cwd, $this->env, $this->conf);
+        $this->timeend = microtime(true);
+
+        if ($throw_exceptions && $this->exitcode !== 0) {
             throw new CommandException($this, "Command failed '$this':\n".trim($this->getStdErr()));
         }
 
@@ -225,8 +221,8 @@ class Command
      */
     public function getFullCommand()
     {
-        $parts = array_merge([$this->_cmd], $this->_args);
-        return implode($this->_separator, $parts);
+        $parts = array_merge([$this->cmd], $this->args);
+        return implode($this->separator, $parts);
     }
 
     /**
@@ -236,7 +232,7 @@ class Command
      */
     public function getExitCode()
     {
-        return $this->_exitcode;
+        return $this->exitcode;
     }
 
     /**
@@ -246,7 +242,7 @@ class Command
      */
     public function getStdOut()
     {
-        return $this->_stdout;
+        return $this->stdout;
     }
 
     /**
@@ -256,7 +252,7 @@ class Command
      */
     public function getStdErr()
     {
-        return $this->_stderr;
+        return $this->stderr;
     }
 
     /**
@@ -267,201 +263,12 @@ class Command
      */
     public function getDuration($microseconds=false)
     {
-        $duration = $this->_timeend - $this->_timestart;
+        $duration = $this->timeend - $this->timestart;
         return $microseconds? $duration: round($duration);
     }
 
     public static function echoStdErr($content)
     {
         fputs(STDERR, $content);
-    }
-
-    /**
-     * Executes a command returning the exitcode and capturing the stdout and stderr
-     *
-     * @param string $cmd
-     * @param array &$buffers
-     *  0 - StdIn contents to be passed to the command (optional)
-     *  1 - StdOut contents returned by the command execution
-     *  2 - StdOut contents returned by the command execution
-     * @param callable $callback  A callback function for stdout/stderr data
-     * @param bool $callbacklines Call callback for each line
-     * @param int $readbuffer Read this many bytes at a time
-     * @param string $cwd Set working directory
-     * @param array $env Environment variables for the process
-     * @param array $conf Additional options for proc_open()
-     * @return int
-     */
-    public static function exec($cmd, &$buffers, $callback = null, $callbacklines = false, $readbuffer = 16536, $cwd = null, $env = null, $conf = null)
-    {
-        if (!is_array($buffers)) {
-            $buffers = [];
-        }
-
-        // Define the pipes to configure for the process
-        $descriptors = [
-            self::STDIN  => ['pipe', 'r'],
-            self::STDOUT => ['pipe', 'w'],
-            self::STDERR => ['pipe', 'w'],
-        ];
-
-        // Start the process
-        $ph = proc_open($cmd, $descriptors, $pipes, $cwd, $env, $conf);
-        if (!is_resource($ph)) {
-            return null;
-        }
-
-        // Prepare STDIN
-        $stdin = $buffers[self::STDIN];
-        $stdin_is_stream = is_resource($stdin);
-        $use_stdin = $stdin_is_stream || !empty($stdin);
-        
-        if (!$use_stdin) {
-            fclose($pipes[self::STDIN]);
-        } else if (is_resource($buffers[self::STDIN])) {
-            $input_stream = new Stream\StreamWriter($buffers[self::STDIN], $pipes[self::STDIN], $readbuffer);
-        } else {
-            $input_stream = new Stream\StringWriter($buffers[self::STDIN], $pipes[self::STDIN], $readbuffer);
-        }
-
-        // Prepare STDOUT and STDERR
-        if ($callback === null) {
-            $stdout_stream = new Stream\StringReader($pipes[self::STDOUT], self::STDOUT, $buffers[self::STDOUT], $readbuffer);
-            $stderr_stream = new Stream\StringReader($pipes[self::STDERR], self::STDERR, $buffers[self::STDERR], $readbuffer);
-        } else if ($callbacklines) {
-            $stdout_stream = new Stream\CallbackLinesReader($pipes[self::STDOUT], self::STDOUT, $callback, $readbuffer);
-            $stderr_stream = new Stream\CallbackLinesReader($pipes[self::STDERR], self::STDERR, $callback, $readbuffer);
-        } else {
-            $stdout_stream = new Stream\CallbackReader($pipes[self::STDOUT], self::STDOUT, $callback, $readbuffer);
-            $stderr_stream = new Stream\CallbackReader($pipes[self::STDERR], self::STDERR, $callback, $readbuffer);
-        }
-
-        // Setup all streams to non-blocking mode
-        foreach ($pipes as $pipe) {
-            if (is_resource($pipe)) {
-                stream_set_blocking($pipe, false);
-            }
-        }
-
-        $stream_select_timeout_sec = null;
-        $stream_select_timeout_usec = 200000;
-
-        $exit_code = null;
-
-        // Read from the process' STDOUT and STDERR
-        $reads = [
-            $pipes[self::STDOUT],
-            $pipes[self::STDERR],
-        ];
-
-        // Write to the process' STDIN
-        $writes = [
-            $pipes[self::STDIN],
-        ];
-
-        // We will do a final, blocking read on all streams after the process exists
-        $last_read_loop = false;
-
-        // Read/write loop
-        while (true) {
-
-            // Setup streams before each iteration since they are changed by stream_select()
-            $streams = [
-                'read'  => array_filter($reads, 'is_resource'),
-                'write' => $use_stdin? array_filter($writes, 'is_resource'): [],
-                'except' => [],
-            ];
-
-            // This line will block until a stream is ready for input or output
-            $ready_streams = stream_select(
-                $streams['read'],
-                $streams['write'],
-                $streams['except'],
-                $stream_select_timeout_sec,
-                $stream_select_timeout_usec
-            );
-
-            // Try to find the exit code of the command before buggy proc_close()
-            if ($exit_code === null || $last_read_loop === true) {
-
-                $status = proc_get_status($ph);
-
-                if (!$status['running']) {
-
-                    if ($exit_code === null) {
-                        $exit_code = $status['exitcode'];
-                    }
-
-                    if ($last_read_loop) {
-                        // Process exited, close write streams
-                        array_map('fclose', array_filter($writes, 'is_resource'));
-
-                        // Set read streams to blocking mode so we can get all the remaining data
-                        foreach (array_filter($reads, 'is_resource') as $stream) {
-                            stream_set_blocking($stream, true);
-                        }
-
-                        // Break out of the read/write loop
-                        break;
-                    } else {
-                        $last_read_loop = true;
-                    }
-                }
-            }
-
-            if ($ready_streams === 0) {
-                // Stream timeout; no streams ready, retry stream_select
-                continue;
-            } else if ($ready_streams === false) {
-                throw new \Exception("stream_select() failed while waiting for I/O on command");
-            }
-
-            // Read from all ready streams
-            foreach ($streams['read'] as $stream) {
-                try {
-
-                    if ($stream === $pipes[self::STDOUT]) {
-                        $stdout_stream->read();
-                    } else {
-                        $stderr_stream->read();
-                    }
-
-                } catch (TerminateException $e) {
-                    // We killed the proc early, set code to 0
-                    $exit_code = 0;
-                }
-            }
-
-            // Write to all write ready streams (STDIN of the process)
-            if (!empty($streams['write'])) {
-                $input_stream->write();
-            }
-
-        } // End read/write loop
-
-        // Make sure all pipes are closed
-        foreach ($pipes as $pipe => $desc) {
-            if (is_resource($desc)) {
-                if ($callback) {
-                    call_user_func($callback, $pipe, null);
-                }
-                fclose($desc);
-            }
-        }
-
-        // Make sure the process is terminated
-        $status = proc_get_status($ph);
-        if ($status['running']) {
-            proc_terminate($ph);
-        }
-
-        // Find out the exit code
-        if ($exit_code === null) {
-            $exit_code = proc_close($ph);
-        } else {
-            proc_close($ph);
-        }
-
-        return $exit_code;
     }
 }

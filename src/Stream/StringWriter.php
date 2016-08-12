@@ -35,4 +35,9 @@ class StringWriter implements Writer {
         }
     }
 
+    public function getBytes()
+    {
+        return $this->position;
+    }
+
 }
