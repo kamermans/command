@@ -3,9 +3,7 @@ command
 
 External command runner / executor for PHP.  This is an object oriented, robust replacement for `exec`, `shell_exec`, the backtick operator and the like.
 
-~~Taken from http://pollinimini.net/blog/php-command-runner/ and hosted here for maintenance, improvement and use with Packagist~~
-
-This package is diverging heavily from the original project, and it will continue to diverge.
+> This package is inspired by http://pollinimini.net/blog/php-command-runner/.
 
 ## Running Commands
 

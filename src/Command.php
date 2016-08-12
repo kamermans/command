@@ -1,14 +1,5 @@
 <?php namespace kamermans\Command;
 
-/**
- * Command building and execution
- *
- * Most methods implement a "fluent interface" for easy method call chaining.
- * 
- * @see http://pollinimini.net/blog/php-command-runner/
- * @author IvÃ¡n -DrSlump- Montes <drslump@pollinimini.net>
- * @license BSD
- */
 class Command
 {
     const STDIN  = 0;
