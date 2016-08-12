@@ -8,6 +8,9 @@
             "email": "stevekamerman@gmail.com"
         }
     ],
+    "require": {
+        "php": ">=5.4"
+    },
     "autoload": {
         "psr-4": {
             "kamermans\\Command\\" : ["src/","test/"]

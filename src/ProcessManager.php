@@ -23,11 +23,6 @@ class ProcessManager {
     /**
      * Executes a command returning the exitcode and capturing the stdout and stderr
      *
-     * @param string $cmd
-     * @param array &$buffers
-     *  0 - StdIn contents to be passed to the command (optional)
-     *  1 - StdOut contents returned by the command execution
-     *  2 - StdOut contents returned by the command execution
      * @param callable $callback  A callback function for stdout/stderr data
      * @param bool $callbacklines Call callback for each line
      * @param int $buffer_size Read this many bytes at a time
