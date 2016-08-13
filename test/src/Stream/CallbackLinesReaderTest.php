@@ -75,4 +75,26 @@ class CallbackLinesReaderTest extends \PHPUnit_Framework_TestCase {
         $min_iterations = ceil($value_size / $buffer_size);
         $this->assertGreaterThanOrEqual($min_iterations, $iterations, "Finished reading the stream in $iterations iterations, but with a buffer_size of $buffer_size and $value_size bytes of data, it must have taken at least $min_iterations iterations");
     }
+
+    /**
+     * @expectedException kamermans\Command\TerminateException
+     */
+    public function testTerminateFromCallback()
+    {
+        $value = get_test_string();
+        $stream = string_to_stream($value);
+        $buffer_size = 1000;
+
+        $callback = function($pipe, $data) {
+            // Returning false tells Command to throw a TerminateException
+            return false;
+        };
+
+        $reader = new CallbackReader($stream, 0, $callback, $buffer_size);
+
+        while (!feof($stream)) {
+            $reader->read();
+        }
+    }
+
 }

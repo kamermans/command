@@ -255,7 +255,7 @@ class Command
     public function getDuration($microseconds=false)
     {
         $duration = $this->timeend - $this->timestart;
-        return $microseconds? $duration: round($duration);
+        return $microseconds? $duration: (int)round($duration);
     }
 
     public static function echoStdErr($content)
