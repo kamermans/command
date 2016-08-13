@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__."/../vendor/autoload.php";
+
 function string_to_stream($value, $blocking=false)
 {
     $stream = fopen("php://memory", "r+");
