@@ -69,11 +69,11 @@ class StreamWriterTest extends \PHPUnit_Framework_TestCase {
 
         $writer = new StreamWriter($value_stream, $stream, $buffer_size);
 
-        $this->assertTrue(is_resource($stream));
+        $this->assertSame("stream", get_resource_type($stream));
 
         while ($ret = $writer->write(false));
 
-        $this->assertTrue(is_resource($stream));
+        $this->assertSame("Unknown", get_resource_type($stream));
     }
 
 
@@ -89,11 +89,11 @@ class StreamWriterTest extends \PHPUnit_Framework_TestCase {
 
         $writer = new StreamWriter($value_stream, $stream, $buffer_size);
 
-        $this->assertTrue(is_resource($stream));
+        $this->assertSame("stream", get_resource_type($stream));
 
         while ($ret = $writer->write(true));
 
-        $this->assertFalse(is_resource($stream));
+        $this->assertSame("Unknown", get_resource_type($stream));
     }
 
 }
