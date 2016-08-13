@@ -24,7 +24,7 @@ $cmd = Command::factory('/usr/bin/svn')
     ->option('--username', 'drslump')
     ->option('-r', 'HEAD')
     ->option('log')
-    ->argument('http://code.google.com/drslump/trunk');
+    ->argument('http://code.google.com/drslump/trunk')
     ->run();
 
 echo $cmd->getStdOut();
