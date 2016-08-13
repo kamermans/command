@@ -1,7 +1,11 @@
-command
+kamermans/command
 =======
 
+[![Build Status](https://travis-ci.org/kamermans/command.svg?branch=master)](https://travis-ci.org/kamermans/command)
+
 External command runner / executor for PHP.  This is an object oriented, robust replacement for `exec`, `shell_exec`, the backtick operator and the like.
+
+**This package does not work reliably in Windows due to a lack of complete `proc_open()` support in PHP**
 
 > This package is inspired by http://pollinimini.net/blog/php-command-runner/.
 
