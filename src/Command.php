@@ -59,7 +59,7 @@ class Command
      * Read no more than this many bytes at a time
      * 
      * @param int $bytes
-     * @reutrn Command - Fluent
+     * @return Command - Fluent
      */
     public function setReadBuffer($bytes)
     {
@@ -172,6 +172,7 @@ class Command
      * @param string|resource $stdin The string contents for STDIN or a stream resource to be consumed
      * @param bool $throw_exceptions If true (default), an exception will be thrown if the command fails
      * @return Command - Fluent interface
+     * @throws CommandException The command failed
      */
     public function run($stdin = null, $throw_exceptions = true)
     {
@@ -181,14 +182,14 @@ class Command
         $this->stderr = null;
         $this->timestart = microtime(true);
 
-        $process = new ProcessManager($this->getFullCommand(), $buffers);
-
         // Prepare the buffers structure
         $buffers = [
             self::STDIN  => $stdin,
             self::STDOUT => &$this->stdout,
             self::STDERR => &$this->stderr,
         ];
+
+        $process = new ProcessManager($this->getFullCommand(), $buffers);
 
         $this->exitcode = $process->exec($this->callback, $this->callbacklines, $this->readbuffer, $this->cwd, $this->env, $this->conf);
         $this->timeend = microtime(true);

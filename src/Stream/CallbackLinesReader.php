@@ -2,6 +2,10 @@
 
 use kamermans\Command\TerminateException;
 
+/**
+ * Reads a stream into a callback one line at a time
+ * @package kamermans\Command\Stream
+ */
 class CallbackLinesReader extends CallbackReader {
 
     public function read()

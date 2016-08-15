@@ -1,3 +1,7 @@
 <?php namespace kamermans\Command;
 
-class TerminateException extends \Exception {}
+/**
+ * Class TerminateException is thrown when a command should be aborted
+ * @package kamermans\Command
+ */
+class TerminateException extends Exception {}

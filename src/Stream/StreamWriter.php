@@ -1,6 +1,12 @@
 <?php namespace kamermans\Command\Stream;
 
-class StreamWriter implements Writer {
+use kamermans\Command\Exception;
+
+/**
+ * Writes a stream into another stream
+ * @package kamermans\Command\Stream
+ */
+class StreamWriter implements Handler, Writer {
 
     protected $id;
     protected $stream;
@@ -9,14 +15,22 @@ class StreamWriter implements Writer {
     protected $buffer_size;
     protected $bytes = 0;
 
+    /**
+     * StreamWriter constructor.
+     *
+     * @param resource $source_stream The source stream that will be read from
+     * @param resource $dest_stream The destination stream that will be written to
+     * @param int $buffer_size The max bytes that can be copied at one time
+     * @throws Exception The source or destination streams are invalid
+     */
     public function __construct($source_stream, $dest_stream, $buffer_size=4096)
     {
         if (!is_resource($source_stream)) {
-            throw new \InvalidArguentException("source_stream is not a valid resource");
+            throw new Exception("source_stream is not a valid resource");
         }
 
         if (!is_resource($dest_stream)) {
-            throw new \InvalidArgumentException("dest_stream is not a valid resource");
+            throw new Exception("dest_stream is not a valid resource");
         }
 
         $this->id = (string)$source_stream;

@@ -1,6 +1,10 @@
 <?php namespace kamermans\Command;
 
-class CommandException extends \Exception {
+/**
+ * Class CommandException is thrown when a command fails
+ * @package kamermans\Command
+ */
+class CommandException extends Exception {
 
 	protected $cmd;
 

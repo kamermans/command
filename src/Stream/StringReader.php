@@ -1,6 +1,10 @@
 <?php namespace kamermans\Command\Stream;
 
-class StringReader implements Reader {
+/**
+ * Reads a stream into a string
+ * @package kamermans\Command\Stream
+ */
+class StringReader implements Handler, Reader {
 
     protected $id;
     protected $stream;
@@ -9,6 +13,13 @@ class StringReader implements Reader {
     protected $buffer;
     protected $bytes = 0;
 
+    /**
+     * StringReader constructor.
+     * @param resource $stream The source stream that will be read from
+     * @param int $stream_id The ID of the stream (0=STDIN, 1=STDOUT, 2=STDERR)
+     * @param string $buffer The destination string that will be written to
+     * @param int $buffer_size The max bytes that can be copied at one time
+     */
     public function __construct($stream, $stream_id, &$buffer, $buffer_size=4096)
     {
         if (!is_resource($stream)) {

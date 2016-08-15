@@ -1,5 +1,12 @@
 <?php namespace kamermans\Command;
+use kamermans\Command\Stream\Handler;
 
+/**
+ * Class ProcessManager
+ * Starts and manages a process, handling STDIN, STDOUT and STDERR and exit status.
+ *
+ * @package kamermans\Command
+ */
 class ProcessManager {
     
     protected $cmd;
@@ -10,6 +17,12 @@ class ProcessManager {
     protected $io_writes = [];
     protected $streams = [];
 
+
+    /**
+     * ProcessManager constructor.
+     * @param string $cmd Full command to be run
+     * @param array $buffers Array of buffers to be used for STDIN, STDOUT, STDERR
+     */
     public function __construct($cmd, &$buffers)
     {
         if (!is_array($buffers)) {
@@ -21,7 +34,7 @@ class ProcessManager {
     }
 
     /**
-     * Executes a command returning the exitcode and capturing the stdout and stderr
+     * Executes a command returning the exit code and capturing the stdout and stderr
      *
      * @param callable $callback  A callback function for stdout/stderr data
      * @param bool $callbacklines Call callback for each line
@@ -29,7 +42,7 @@ class ProcessManager {
      * @param string $cwd Set working directory
      * @param array $env Environment variables for the process
      * @param array $conf Additional options for proc_open()
-     * @return int
+     * @return int Process exit code
      */
     public function exec($callback, $callbacklines, $buffer_size, $cwd, $env, $conf)
     {
@@ -79,13 +92,24 @@ class ProcessManager {
         return $exit_code;
     }
 
+    /**
+     * Checks all ready read/write handles as returned by `stream_select()` and calls the write() or read() methods
+     * of their corresponding Stream handler
+     *
+     * @see Writer::write()
+     * @see Reader::read()
+     *
+     * @param $handles
+     * @return bool
+     * @throws Exception
+     */
     protected function doReadWrite($handles)
     {
         if ($handles['ready'] === 0) {
             // Stream timeout; no streams ready
             return false;
         } else if ($handles['ready'] === false) {
-            throw new \Exception("stream_select() failed while waiting for I/O on command");
+            throw new Exception("stream_select() failed while waiting for I/O on command");
         }
 
         // Read from all ready streams
@@ -108,6 +132,14 @@ class ProcessManager {
         return true;
     }
 
+    /**
+     * Opens the process handle via `proc_open()`
+     *
+     * @param string $cwd The initial working dir for the command. This must be an absolute directory path or null.
+     * @param array $env An array with the environment variables for the command that will be run, or null.
+     * @param array $conf Additional options to pass to `proc_open()` (as the `$other_options` parameter).
+     * @throws Exception The command failed to start
+     */
     protected function open($cwd, $env, $conf)
     {
         // Define the streams to configure for the process
@@ -120,7 +152,7 @@ class ProcessManager {
         // Start the process
         $this->handle = proc_open($this->cmd, $descriptors, $this->io_handles, $cwd, $env, $conf);
         if (!is_resource($this->handle)) {
-            throw new \Exception("Failed to open process handle");
+            throw new Exception("Failed to open process handle");
         }
 
         // Set all IO handles to non-blocking mode
@@ -142,7 +174,14 @@ class ProcessManager {
         ];
     }
 
-    protected function close($exit_code, $callback)
+    /**
+     * Closes the currently running process and returns the exit code.
+     *
+     * @param int $exit_code The code that the process exited with or null if unavailable
+     * @param callable $callback Output data callback function
+     * @return int Exit code
+     */
+    protected function close($exit_code, callable $callback=null)
     {
         // Make sure all IO handles are closed
         foreach ($this->io_handles as $id => $handle) {
@@ -171,16 +210,29 @@ class ProcessManager {
         return $exit_code;
     }
 
+    /**
+     * @return bool true if STDIN buffer is available for reading
+     */
     protected function isStdInAvailable()
     {
         return $this->isStdInStreaming() || !empty($this->buffers[Command::STDIN]);
     }
 
+    /**
+     * @return bool true if STDIN is a stream (false if it is a string)
+     */
     protected function isStdInStreaming()
     {
         return is_resource($this->buffers[Command::STDIN]);
     }
 
+    /**
+     * Setup the STDIN, STDOUT and STDERR stream handlers
+     *
+     * @param callable|null $callback
+     * @param bool $callbacklines
+     * @param int $buffer_size
+     */
     protected function setupStreams($callback, $callbacklines, $buffer_size)
     {
         // Prepare STDIN
@@ -253,28 +305,33 @@ class ProcessManager {
         ];
     }
 
-
+    /**
+     * This function will wait until streams are ready for read/write, or a timeout has occurred, then it will
+     * return an array of those handles that are ready for processing.
+     *
+     * @return array
+     */
     protected function waitForReadyHandles()
     {
         // Setup streams before each iteration since they are changed by stream_select()
         $stream_select_timeout_sec = null;
         $stream_select_timeout_usec = 200000;
 
-        $handles['read'] = array_filter($this->io_reads, 'is_resource');
+        $handles = [
+            'read' => array_filter($this->io_reads, 'is_resource'),
+            'write' => [],
+            'except' => [],
+        ];
 
         if ($this->isStdInAvailable() && is_resource($this->io_handles[Command::STDIN])) {
             $handles['write'] = $this->io_writes;
-        } else {
-            $handles['write'] = [];
         }
-
-        $except = [];
 
         // This line will block until a stream is ready for input or output
         $num_ready = stream_select(
             $handles['read'],
             $handles['write'],
-            $except,
+            $handles['except'],
             $stream_select_timeout_sec,
             $stream_select_timeout_usec
         );
@@ -284,6 +341,12 @@ class ProcessManager {
         return $handles;
     }
 
+    /**
+     * Returns the Stream Handler (Reader/Writer) that is managing a given IO handle
+     *
+     * @param resource $handle
+     * @return Stream\Handler
+     */
     protected function getStreamFromIoHandle($handle)
     {
         return $this->streams[array_search($handle, $this->io_handles)];
