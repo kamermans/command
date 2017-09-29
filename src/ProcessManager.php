@@ -8,7 +8,7 @@ use kamermans\Command\Stream\Handler;
  * @package kamermans\Command
  */
 class ProcessManager {
-    
+
     protected $cmd;
     protected $buffers;
     protected $handle;
@@ -74,7 +74,7 @@ class ProcessManager {
                 }
 
                 $finished_handles = count(array_filter($this->io_reads, 'feof'));
-                if ($finished_handles === count($this->io_reads)) {
+                if ($exit_code !== null && $finished_handles === count($this->io_reads)) {
                     break;
                 }
 
@@ -243,8 +243,8 @@ class ProcessManager {
         } else if ($this->isStdInStreaming()) {
             // STDIN is streaming to the process
             $stdin_stream = new Stream\StreamWriter(
-                $this->buffers[Command::STDIN], 
-                $this->io_handles[Command::STDIN], 
+                $this->buffers[Command::STDIN],
+                $this->io_handles[Command::STDIN],
                 $buffer_size
             );
         } else {
