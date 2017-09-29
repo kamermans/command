@@ -45,7 +45,12 @@ class StringWriter implements Handler, Writer {
             return false;
         } else {
             $chunk = substr($this->data, $this->position, $this->buffer_size);
-            $bytes_written = fwrite($this->dest_stream, $chunk);
+            $bytes_written = @fwrite($this->dest_stream, $chunk);
+
+            if ($bytes_written === false) {
+                $bytes_written = 0;
+            }
+
             $this->position += $bytes_written;
             return $bytes_written;
         }
