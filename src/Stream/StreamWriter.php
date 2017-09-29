@@ -55,7 +55,7 @@ class StreamWriter implements Handler, Writer {
             $this->buffer .= stream_get_contents($this->stream, $this->buffer_size);
         }
 
-        $bytes_written = fwrite($this->dest_stream, $this->buffer);
+        $bytes_written = @fwrite($this->dest_stream, $this->buffer);
 
         if ($bytes_written === false) {
             return 0;
